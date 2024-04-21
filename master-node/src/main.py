@@ -3,7 +3,7 @@ import random
 import threading
 import signal
 import time
-from flask import Flask, request, render_template
+from flask import Flask, render_template
 
 app = Flask(__name__)
 data = 2
