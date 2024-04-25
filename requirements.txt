@@ -1,0 +1,6 @@
+torch==1.12.1
+torchvision==0.13.1
+opencv-python==4.9.0.80 
+numpy==1.23.2
+pandas==1.4.3
+mediapipe==0.8.11
