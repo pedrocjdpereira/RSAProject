@@ -1,8 +1,25 @@
 services:
-  web:
+  master:
     build: .
     ports:
-      - "8000:5000"
+      - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
       - FLASK_ENV=development
+    networks:
+    - master-network
+  mqtt:
+    image: toke/mosquitto
+    container_name: mqtt
+    expose:
+      - 1883
+    ports:
+      - 1883:1883
+    restart: unless-stopped
+    networks:
+      - master-network
+
+networks:
+  master-network:
+    name: rsa-network
+    driver: bridge
