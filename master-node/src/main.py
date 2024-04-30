@@ -9,10 +9,11 @@ import paho.mqtt.client as mqtt
 # MQTT Broker details
 BROKER_ADDRESS = "mqtt"
 TOPIC = "main"
+KEEPALIVE = 10
 
 app = Flask(__name__)
 data = 0
-data_ids = []
+data_ids = {}
 
 RECONNECT_DELAY = 5
 MAX_RECONNECT_COUNT = 10
@@ -47,29 +48,28 @@ def on_message(client, userdata, msg):
         id = payload["id"]
         operation = payload["operation"]
         operationState = payload["operationState"]
-        global data
-        global data_ids
-        if operation == "reserve_id" and operationState == "PROCESSING":
-            print("Received reserve ID request {}".format(payload))
-            try:
-                # Check if ID already exists
-                msg = {
-                    "id": id,
-                    "operation": "reserve_id",
-                }
-                if id not in data_ids:
-                    data_ids.append(id)
-                    msg["operationState"] = "COMPLETED"
-                else:
-                    msg["operationState"] = "FAILED"
-                client.publish(TOPIC, json.dumps(msg))
-                print("Published data {}".format(msg))
-            except Exception as e:
-                print("ERROR:{}".format(e))
-        elif operation == "data_transfer":
-            print("Received data {} from table {}".format(payload["data"], id))
     except Exception as e:
         print("ERROR: {}".format(e))
+
+    global data
+    global data_ids
+    if operation == "reserve_id" and operationState == "PROCESSING":
+        print("Received reserve ID request {}".format(payload))
+        # Check if ID already exists
+        msg = {
+            "id": id,
+            "operation": "reserve_id",
+        }
+        if id not in data_ids:
+            data_ids[id] = True
+            msg["operationState"] = "COMPLETED"
+        else:
+            msg["operationState"] = "FAILED"
+        client.publish(TOPIC, json.dumps(msg))
+        print("Published data {}".format(msg))
+    elif operation == "data_transfer":
+        print("Received data {} from table {}".format(payload["data"], id))
+        data_ids[id] = True
 
 @app.route('/', methods=['GET'])
 def root():
@@ -90,7 +90,21 @@ def start_data():
     client.on_message = on_message
     client.connect(BROKER_ADDRESS, 1883, 60)
     client.subscribe(TOPIC)
-    client.loop_forever()
+    client.loop_start()
+
+    global data_ids
+    while True:
+        time.sleep(KEEPALIVE)
+        print("Checking data_ids")
+        keysToDelete = []
+        for key in data_ids.keys():
+            if not data_ids[key]:
+                print("Deleting id {} from data_ids {}".format(key, data_ids))
+                keysToDelete.append(key)
+            else:
+                data_ids[key] = False
+        for key in keysToDelete:
+            del data_ids[key]
 
 def signal_handler(signal, frame):
     # Handle Ctrl+C
