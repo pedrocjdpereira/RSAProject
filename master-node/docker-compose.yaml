@@ -1,6 +1,6 @@
 services:
   master:
-    image: master-node
+    build: .
     ports:
       - "8000:8000"
     environment:
@@ -9,7 +9,7 @@ services:
     networks:
     - master-network
   mqtt:
-    image: arm64v8/eclipse-mosquitto
+    image: toke/mosquitto
     container_name: mqtt
     expose:
       - 1883

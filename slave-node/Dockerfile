@@ -1,4 +1,4 @@
-FROM arm64v8/python:3.10-alpine
+FROM python:3.10-slim
 
 WORKDIR /src
 
@@ -6,13 +6,13 @@ ENV FLASK_APP=main.py
 
 ENV FLASK_RUN_HOST=0.0.0.0
 
-RUN apk add --no-cache gcc musl-dev linux-headers
+RUN apt-get update && apt-get install gcc musl-dev ffmpeg libsm6 libxext6  -y
 
 RUN pip install --upgrade pip
 
-COPY src /src
+RUN pip install requests flask redis paho-mqtt torch torchvision numpy pandas mediapipe opencv-python
 
-RUN pip install flask redis paho-mqtt
+COPY src /src
 
 EXPOSE 5000
 

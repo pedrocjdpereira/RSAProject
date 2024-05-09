@@ -7,12 +7,12 @@ from flask import Flask, render_template
 import paho.mqtt.client as mqtt
 
 # MQTT Broker details
-BROKER_ADDRESS = "localhost"
+BROKER_ADDRESS = "mqtt"
 TOPIC = "main"
 KEEPALIVE = 10
 
 app = Flask(__name__)
-data = 0
+data = {}
 data_ids = {}
 
 RECONNECT_DELAY = 5
@@ -69,6 +69,7 @@ def on_message(client, userdata, msg):
         print("Published data {}".format(msg))
     elif operation == "data_transfer":
         print("Received data {} from table {}".format(payload["data"], id))
+        data = payload["data"]
         data_ids[id] = True
 
 @app.route('/', methods=['GET'])

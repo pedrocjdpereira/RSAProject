@@ -6,6 +6,8 @@ import time
 import json
 import paho.mqtt.client as mqtt
 
+from detect_people import PeopleDetector
+
 # MQTT Broker details
 BROKER_ADDRESS = "mqtt"
 TOPIC = "main"
@@ -14,6 +16,7 @@ MAX_RECONNECT_COUNT = 10
 
 id = -1
 id_accepted = False
+peopleDetector = PeopleDetector("../peopleSitting_example1.mp4", 200)
 
 def on_connect(client, userdata, flags, rc, properties):
     if rc == 0:
@@ -91,17 +94,19 @@ def start_data():
     while not id_accepted:
         generate_id(client)
         time.sleep(2)
-        
+
+    global peopleDetector
     while True:
+        data = {}
         msg = {
             "id": id,
             "operation": "data_transfer",
             "operationState": "COMPLETED",
-            "data": random.randint(1,8)
+            "data": peopleDetector.getData()
         }
         client.publish(TOPIC, json.dumps(msg))
         print("Published msg {}. id = {}".format(msg["data"], id))
-        time.sleep(2)
+        time.sleep(1)
 
 def signal_handler(signal, frame):
     # Handle Ctrl+C

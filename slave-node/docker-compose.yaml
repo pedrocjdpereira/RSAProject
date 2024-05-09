@@ -1,17 +1,8 @@
 services:
   slave1:
-    image: slave-node
+    build: .
     ports:
       - "8001:8001"
-    environment:
-      - PYTHONUNBUFFERED=1
-      - FLASK_ENV=development
-    networks:
-      - slave-network
-  slave2:
-    image: slave-node
-    ports:
-      - "8002:8002"
     environment:
       - PYTHONUNBUFFERED=1
       - FLASK_ENV=development
