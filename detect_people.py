@@ -1,29 +1,23 @@
 import cv2
 import torch
-import mediapipe as mp
 
-# Initialize MediaPipe Pose.
-mp_pose = mp.solutions.pose
-pose = mp_pose.Pose(static_image_mode=False, model_complexity=1, enable_segmentation=False, min_detection_confidence=0.5)
+model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)  # Load standard YOLOv5 model
+#json with data
+data = {}
 
-# Load YOLO model
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
 
-def classify_posture(landmarks, image_height):
-    # Assuming left side keypoints; adjust as necessary for accuracy.
-    hip_y = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y * image_height
-    knee_y = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y * image_height
-    # Simple heuristic: if the hip is above the knee, consider the person standing.
-    return "seated" if hip_y >= knee_y else "standing"
+def determine_posture(y1,sitting_limit):
+    # Calculate the y-coordinate of the middle point of the bounding box
+    if y1 > sitting_limit:
+        print("y1 value:",y1)
+        return "seated"
+    else:
+        print("y1 value:",y1)
+        return "standing"
+    
 
-def process_frame(frame):
-    # Convert frame to RGB for MediaPipe
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    # Detect poses
-    results = pose.process(frame_rgb)
-    return results
 
-def main(video_path):
+def getSeats(video_path,sitting_limit):
     cap = cv2.VideoCapture(video_path)
 
     while cap.isOpened():
@@ -31,36 +25,36 @@ def main(video_path):
         if not ret:
             break
 
-        standing_count = 0  # Reset counts for each frame
+        standing_count = 0
         seated_count = 0
+        seats_avaialble=8
 
-        # Use YOLO to detect people
+        # Use YOLO to detect objects
         results = model(frame)
 
         # Process each detection
         for *xyxy, conf, cls in results.xyxy[0]:
             if results.names[int(cls)] == 'person':
                 x1, y1, x2, y2 = map(int, xyxy)
-                # Crop the person subimage
-                person_img = frame[y1:y2, x1:x2]
-                # Analyze posture with MediaPipe
-                mp_results = process_frame(person_img)
-                if mp_results.pose_landmarks:
-                    posture = classify_posture(mp_results.pose_landmarks.landmark, person_img.shape[0])
-                    color = (0, 255, 0) if posture == "standing" else (0, 0, 255)
-                    if posture == "standing":
-                        standing_count += 1
-                    else:
-                        seated_count += 1
+                posture = determine_posture(y1, sitting_limit)
+                color = (0, 0, 255) if posture == "standing" else (0, 255, 0)
+                if posture == "standing":
+                    standing_count += 1
                 else:
-                    color = (128, 128, 128)  # Default color if no posture detected
-                # Draw bounding box around the person
+                    seated_count += 1
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
-        # Display the frame
+        cv2.line(frame, (0, sitting_limit), (frame.shape[1], sitting_limit), (255, 0, 0), 2)
+
+        # Display the frame and return the data in JSON format
+        json_data = {
+            "standing": standing_count,
+            "seated": seated_count,
+            "seats_available": seats_avaialble-standing_count-seated_count
+        }
+        data.update(json_data)
         cv2.imshow('Video', frame)
-        # Print the counts for the current frame
-        print(f"Current frame - Standing: {standing_count}, Seated: {seated_count}")
+        print(f"Current frame - Standing: {standing_count}, Seated: {seated_count},Seats Available: {seats_avaialble-standing_count-seated_count}")
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -71,4 +65,5 @@ def main(video_path):
 if __name__ == "__main__":
     import sys
     video_path = sys.argv[1] if len(sys.argv) > 1 else 'path/to/video.mp4'
-    main(video_path)
+    sitting_limit = int(sys.argv[2]) if len(sys.argv) > 2 else 200
+    main(video_path,sitting_limit)
