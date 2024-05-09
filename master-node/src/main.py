@@ -7,7 +7,7 @@ from flask import Flask, render_template
 import paho.mqtt.client as mqtt
 
 # MQTT Broker details
-BROKER_ADDRESS = "mqtt"
+BROKER_ADDRESS = "localhost"
 TOPIC = "main"
 KEEPALIVE = 10
 
