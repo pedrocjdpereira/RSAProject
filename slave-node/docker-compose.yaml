@@ -6,8 +6,10 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - FLASK_ENV=development
+      - DISPLAY=$DISPLAY
     networks:
       - slave-network
+    privileged: true
 
 networks:
  slave-network:

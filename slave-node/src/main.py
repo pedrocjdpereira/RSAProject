@@ -16,7 +16,7 @@ MAX_RECONNECT_COUNT = 10
 
 id = -1
 id_accepted = False
-peopleDetector = PeopleDetector("../peopleSitting_example1.mp4", 200)
+peopleDetector = PeopleDetector("peopleSitting_example1.mp4", 200)
 
 def on_connect(client, userdata, flags, rc, properties):
     if rc == 0:

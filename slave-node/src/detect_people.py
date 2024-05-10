@@ -4,8 +4,8 @@ import sys
 
 class PeopleDetector:
     def __init__(self, path_to_video, sitting_param) -> None:
-        video_path = path_to_video if len(sys.argv) > 1 else 'path/to/video.mp4'
-        sitting_limit = int(sitting_param) if len(sys.argv) > 2 else 200
+        video_path = path_to_video
+        sitting_limit = int(sitting_param)
         self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)  # Load standard YOLOv5 model
         #json with data
         self.data = {}
@@ -26,9 +26,11 @@ class PeopleDetector:
     def getSeats(self, video_path,sitting_limit):
         cap = cv2.VideoCapture(video_path)
 
-        while cap.isOpened():
+        while True:
+            print("reading file")
             ret, frame = cap.read()
             if not ret:
+                print("no ret")
                 break
 
             standing_count = 0
@@ -63,6 +65,7 @@ class PeopleDetector:
             print(f"Current frame - Standing: {standing_count}, Seated: {seated_count},Seats Available: {seats_avaialble-standing_count-seated_count}")
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
+                print("waitKey")
                 break
         
         print("done")
