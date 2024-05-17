@@ -1,6 +1,7 @@
 services:
   slave1:
     image: slave-node
+    # para localhost - build: .
     ports:
       - "8001:8001"
     environment:

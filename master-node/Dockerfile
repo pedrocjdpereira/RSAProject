@@ -1,4 +1,5 @@
-FROM arm64v8/python:3.10-slim
+FROM arm64v8/python:3.10-slim 
+# para localhost - FROM python:3.10-slim 
 
 RUN apt-get update
 

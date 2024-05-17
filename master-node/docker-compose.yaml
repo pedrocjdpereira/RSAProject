@@ -1,6 +1,6 @@
 services:
   master:
-    image: master-node
+    image: master-node # para localhost - build: .
     ports:
       - "8000:8000"
     expose:
@@ -11,7 +11,7 @@ services:
     networks:
     - master-network
   mqtt:
-    image: arm64v8/eclipse-mosquitto:1.6
+    image: arm64v8/eclipse-mosquitto:1.6 # para localhost - image: eclipse-mosquitto:1.6
     container_name: mqtt
     expose:
       - 1883
