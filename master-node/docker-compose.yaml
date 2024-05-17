@@ -1,15 +1,17 @@
 services:
   master:
-    build: .
+    image: master-node
     ports:
       - "8000:8000"
+    expose:
+      - 8000
     environment:
       - PYTHONUNBUFFERED=1
       - FLASK_ENV=development
     networks:
     - master-network
   mqtt:
-    image: toke/mosquitto
+    image: arm64v8/eclipse-mosquitto:1.6
     container_name: mqtt
     expose:
       - 1883

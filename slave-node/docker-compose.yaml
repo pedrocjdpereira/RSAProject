@@ -1,12 +1,11 @@
 services:
   slave1:
-    build: .
+    image: slave-node
     ports:
       - "8001:8001"
     environment:
       - PYTHONUNBUFFERED=1
       - FLASK_ENV=development
-      - DISPLAY=$DISPLAY
     networks:
       - slave-network
     privileged: true

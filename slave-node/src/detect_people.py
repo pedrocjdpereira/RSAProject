@@ -1,73 +1,81 @@
 import cv2
 import torch
-import sys
+import os
 
 class PeopleDetector:
     def __init__(self, path_to_video, sitting_param) -> None:
-        video_path = path_to_video
-        sitting_limit = int(sitting_param)
-        self.model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)  # Load standard YOLOv5 model
+        self.video_path = path_to_video
+        self.sitting_limit = int(sitting_param)
+        self.model = torch.hub.load('yolov5', 'custom', 'yolov5/yolov5s.pt', source='local')
         #json with data
         self.data = {}
-        self.getSeats(video_path,sitting_limit)
 
     def determine_posture(self,y1,sitting_limit):
         # Calculate the y-coordinate of the middle point of the bounding box
         if y1 > sitting_limit:
-            print("y1 value:",y1)
+            #print("y1 value:",y1)
             return "seated"
         else:
-            print("y1 value:",y1)
+            #print("y1 value:",y1)
             return "standing"
+        
+    def signal_handler(signal, frame):
+        # Handle Ctrl+C
+        print("Ctrl+C detected. Exiting...")
+        os._exit(0)  # Terminate the program forcefully
         
     def getData(self):
         return self.data
 
-    def getSeats(self, video_path,sitting_limit):
-        cap = cv2.VideoCapture(video_path)
-
+    def getSeats(self):
         while True:
-            print("reading file")
-            ret, frame = cap.read()
-            if not ret:
-                print("no ret")
-                break
+            cap = cv2.VideoCapture(self.video_path)
 
-            standing_count = 0
-            seated_count = 0
-            seats_avaialble=8
+            frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            print(f"Processing {frames} frames")
+            i = 0
+            while True:
+                i += 1
+                ret, frame = cap.read()
+                if not ret:
+                    print("no frames")
+                    break
 
-            # Use YOLO to detect objects
-            results = self.model(frame)
+                standing_count = 0
+                seated_count = 0
+                seats_avaialble=8
 
-            # Process each detection
-            for *xyxy, conf, cls in results.xyxy[0]:
-                if results.names[int(cls)] == 'person':
-                    x1, y1, x2, y2 = map(int, xyxy)
-                    posture = self.determine_posture(y1, sitting_limit)
-                    color = (0, 0, 255) if posture == "standing" else (0, 255, 0)
-                    if posture == "standing":
-                        standing_count += 1
-                    else:
-                        seated_count += 1
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                # Use YOLO to detect objects
+                results = self.model(frame)
 
-            cv2.line(frame, (0, sitting_limit), (frame.shape[1], sitting_limit), (255, 0, 0), 2)
+                # Process each detection
+                for *xyxy, conf, cls in results.xyxy[0]:
+                    if results.names[int(cls)] == 'person':
+                        x1, y1, x2, y2 = map(int, xyxy)
+                        posture = self.determine_posture(y1, self.sitting_limit)
+                        color = (0, 0, 255) if posture == "standing" else (0, 255, 0)
+                        if posture == "standing":
+                            standing_count += 1
+                        else:
+                            seated_count += 1
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
-            # Display the frame and return the data in JSON format
-            json_data = {
-                "standing": standing_count,
-                "seated": seated_count,
-                "seats_available": seats_avaialble-standing_count-seated_count
-            }
-            self.data.update(json_data)
-            cv2.imshow('Video', frame)
-            print(f"Current frame - Standing: {standing_count}, Seated: {seated_count},Seats Available: {seats_avaialble-standing_count-seated_count}")
+                cv2.line(frame, (0, self.sitting_limit), (frame.shape[1], self.sitting_limit), (255, 0, 0), 2)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                print("waitKey")
-                break
-        
-        print("done")
-        cap.release()
-        cv2.destroyAllWindows()
+                # Display the frame and return the data in JSON format
+                json_data = {
+                    "standing": standing_count,
+                    "seated": seated_count,
+                    "seats_available": seats_avaialble-standing_count-seated_count
+                }
+                self.data.update(json_data)
+                #cv2.imshow('Video', frame)
+                print(f"Current frame {i} - Standing: {standing_count}, Seated: {seated_count},Seats Available: {seats_avaialble-seated_count}")
+
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    print("waitKey")
+                    break
+            
+            print("Restarting video...")
+            cap.release()
+            cv2.destroyAllWindows()

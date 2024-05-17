@@ -9,14 +9,13 @@ import paho.mqtt.client as mqtt
 from detect_people import PeopleDetector
 
 # MQTT Broker details
-BROKER_ADDRESS = "mqtt"
+BROKER_ADDRESS = "10.1.1.4"
 TOPIC = "main"
 RECONNECT_DELAY = 5
 MAX_RECONNECT_COUNT = 10
 
 id = -1
 id_accepted = False
-peopleDetector = PeopleDetector("peopleSitting_example1.mp4", 200)
 
 def on_connect(client, userdata, flags, rc, properties):
     if rc == 0:
@@ -114,14 +113,16 @@ def signal_handler(signal, frame):
     os._exit(0)  # Terminate the program forcefully
 
 if __name__ == '__main__':
-    # Register the signal handler for Ctrl+C
-    signal.signal(signal.SIGINT, signal_handler)
+    peopleDetector = PeopleDetector("peopleSitting_example1.mp4", 200)
 
     # Create thread for data
     data_thread = threading.Thread(target=start_data)
+    getSeats_thread = threading.Thread(target=peopleDetector.getSeats)
 
     # Start the thread
     data_thread.start()
+    getSeats_thread.start()
 
     # Wait for the thread to complete
     data_thread.join()
+    getSeats_thread.join()
