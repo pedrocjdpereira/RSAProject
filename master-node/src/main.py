@@ -13,7 +13,7 @@ KEEPALIVE = 10
 
 app = Flask(__name__)
 data = {}
-data_ids = {}
+network_topology = {}
 
 RECONNECT_DELAY = 5
 MAX_RECONNECT_COUNT = 10
@@ -24,7 +24,7 @@ def on_connect(client, userdata, flags, rc, properties):
         else:
             print("Failed to connect, return code %d\n", rc)
 
-def on_disconnect(client, userdata, rc):
+def on_disconnect(client, userdata, rc, properties=None, session_expiry_interval=None):
     print("Disconnected with result code: %s", rc)
     reconnect_count, reconnect_delay = 0, RECONNECT_DELAY
     while reconnect_count < MAX_RECONNECT_COUNT:
@@ -52,16 +52,17 @@ def on_message(client, userdata, msg):
         print("ERROR: {}".format(e))
 
     global data
-    global data_ids
     if operation == "reserve_id" and operationState == "PROCESSING":
         print("Received reserve ID request {}".format(payload))
-        # Check if ID already exists
         msg = {
             "id": id,
             "operation": "reserve_id",
         }
-        if id not in data_ids:
-            data_ids[id] = True
+        # Check if ID already exists
+        if id not in data.keys():
+            data[id] = {}
+            data[id]["alive"] = True
+            update_network(id, payload["network_info"])
             msg["operationState"] = "COMPLETED"
         else:
             msg["operationState"] = "FAILED"
@@ -69,8 +70,8 @@ def on_message(client, userdata, msg):
         print("Published data {}".format(msg))
     elif operation == "data_transfer":
         print("Received data {} from table {}".format(payload["data"], id))
-        data = payload["data"]
-        data_ids[id] = True
+        data[id].update(payload["data"])
+        data[id]["alive"] = True
 
 @app.route('/', methods=['GET'])
 def root():
@@ -81,8 +82,23 @@ def get_data():
     global data
     return str(data)
 
+@app.route('/network_topology', methods=['GET'])
+def get_network_topology():
+    global network_topology
+    return str(network_topology)
+
 def start_server():
     app.run(host='0.0.0.0', port=8000)
+
+def update_network(id, network_info=None, remove=False):
+    global network_topology
+    
+    if remove:
+        if id in network_topology.keys():
+            del network_topology[id]
+    else:
+        if network_info:
+            network_topology[id] = network_info
 
 def start_data():
     client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
@@ -93,19 +109,20 @@ def start_data():
     client.subscribe(TOPIC)
     client.loop_start()
 
-    global data_ids
+    global data
     while True:
         time.sleep(KEEPALIVE)
-        print("Checking data_ids")
-        keysToDelete = []
-        for key in data_ids.keys():
-            if not data_ids[key]:
-                print("Deleting id {} from data_ids {}".format(key, data_ids))
-                keysToDelete.append(key)
+        print("Checking data IDs")
+        idsToDelete = []
+        for id in data.keys():
+            if not data[id]["alive"]:
+                print("Deleting id {} from data IDs {}".format(id, data.keys()))
+                idsToDelete.append(id)
             else:
-                data_ids[key] = False
-        for key in keysToDelete:
-            del data_ids[key]
+                data[id]["alive"] = False
+        for id in idsToDelete:
+            del data[id]
+            update_network(id, remove=True)
 
 def signal_handler(signal, frame):
     # Handle Ctrl+C

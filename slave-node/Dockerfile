@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y \
     qtbase5-dev \
     qtdeclarative5-dev \
     qttools5-dev \
+    sudo \
+    batctl \
+    net-tools \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --upgrade pip
