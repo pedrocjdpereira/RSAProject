@@ -1,2 +1,2 @@
-docker compose down --rmi local
-docker compose up --build
+sudo docker compose down --rmi local
+sudo docker compose up --build

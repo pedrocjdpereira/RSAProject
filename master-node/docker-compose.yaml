@@ -2,9 +2,9 @@ services:
   master:
     image: master-node # para localhost - build: .
     ports:
-      - "8000:8000"
+      - "5000:5000"
     expose:
-      - 8000
+      - 5000
     environment:
       - PYTHONUNBUFFERED=1
       - FLASK_ENV=development

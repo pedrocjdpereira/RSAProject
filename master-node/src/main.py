@@ -5,6 +5,7 @@ import time
 import json
 from flask import Flask, render_template
 import paho.mqtt.client as mqtt
+import paho.mqtt.client as mqtt
 
 # MQTT Broker details
 BROKER_ADDRESS = "mqtt"
@@ -87,6 +88,18 @@ def get_network_topology():
     global network_topology
     return str(network_topology)
 
+@app.route('/', methods=['GET'])
+def welcome():
+    return render_template('index.html')
+
+@app.route('/dashboard', methods=['GET'])
+def dashboard():
+    return render_template('library.html')
+
+#add a route that shows the live feed of my camera
+@app.route('/live_feed', methods=['GET'])
+def live_feed():
+    return render_template('live_feed.html')
 def start_server():
     app.run(host='0.0.0.0', port=8000)
 
@@ -131,6 +144,7 @@ def signal_handler(signal, frame):
 
 if __name__ == '__main__':
     # Register the signal handler for Ctrl+C
+    signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 
     # Create threads for server and data and for checking and removing inactive data threads

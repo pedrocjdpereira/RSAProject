@@ -13,7 +13,7 @@ WORKDIR /src
 
 COPY /src .
 
-EXPOSE 8000
+EXPOSE 5000
 
 ENV FLASK_APP=main.py
 
