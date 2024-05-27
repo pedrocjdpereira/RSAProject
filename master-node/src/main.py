@@ -4,7 +4,7 @@ import signal
 import time
 import json
 from flask import Flask, render_template
-#import paho.mqtt.client as mqtt
+import paho.mqtt.client as mqtt
 
 # MQTT Broker details
 BROKER_ADDRESS = "mqtt"
@@ -74,17 +74,8 @@ def on_message(client, userdata, msg):
         data[id]["alive"] = True
 
 @app.route('/', methods=['GET'])
-def welcome():
-    return render_template('index.html')
-
-@app.route('/dashboard', methods=['GET'])
-def dashboard():
-    return render_template('library.html')
-
-#add a route that shows the live feed of my camera
-@app.route('/live_feed', methods=['GET'])
-def live_feed():
-    return render_template('live_feed.html')
+def root():
+    return 'Hello World!'
 
 @app.route('/get_data', methods=['GET'])
 def get_data():
@@ -99,6 +90,16 @@ def get_network_topology():
 def start_server():
     app.run(host='0.0.0.0', port=8000)
 
+def update_network(id, network_info=None, remove=False):
+    global network_topology
+    
+    if remove:
+        if id in network_topology.keys():
+            del network_topology[id]
+    else:
+        if network_info:
+            network_topology[id] = network_info
+
 def start_data():
     client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
     client.on_connect = on_connect
@@ -108,19 +109,20 @@ def start_data():
     client.subscribe(TOPIC)
     client.loop_start()
 
-    global data_ids
+    global data
     while True:
         time.sleep(KEEPALIVE)
-        print("Checking data_ids")
-        keysToDelete = []
-        for key in data_ids.keys():
-            if not data_ids[key]:
-                print("Deleting id {} from data_ids {}".format(key, data_ids))
-                keysToDelete.append(key)
+        print("Checking data IDs")
+        idsToDelete = []
+        for id in data.keys():
+            if not data[id]["alive"]:
+                print("Deleting id {} from data IDs {}".format(id, data.keys()))
+                idsToDelete.append(id)
             else:
-                data_ids[key] = False
-        for key in keysToDelete:
-            del data_ids[key]
+                data[id]["alive"] = False
+        for id in idsToDelete:
+            del data[id]
+            update_network(id, remove=True)
 
 def signal_handler(signal, frame):
     # Handle Ctrl+C
@@ -129,17 +131,16 @@ def signal_handler(signal, frame):
 
 if __name__ == '__main__':
     # Register the signal handler for Ctrl+C
-    # signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
 
-    # # Create threads for server and data and for checking and removing inactive data threads
-    # server_thread = threading.Thread(target=start_server)
-    # data_thread = threading.Thread(target=start_data)
+    # Create threads for server and data and for checking and removing inactive data threads
+    server_thread = threading.Thread(target=start_server)
+    data_thread = threading.Thread(target=start_data)
 
-    # # Start the threads
-    # server_thread.start()
-    # data_thread.start()
+    # Start the threads
+    server_thread.start()
+    data_thread.start()
 
-    # # Wait for the threads to complete
-    # server_thread.join()
-    # data_thread.join()
-    app.run()
+    # Wait for the threads to complete
+    server_thread.join()
+    data_thread.join()
