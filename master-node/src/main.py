@@ -3,18 +3,21 @@ import threading
 import signal
 import time
 import json
+import subprocess
 from flask import Flask, render_template
 import paho.mqtt.client as mqtt
 import paho.mqtt.client as mqtt
 
 # MQTT Broker details
-BROKER_ADDRESS = "mqtt"
+NETWORK_INTERFACE = os.environ.get("NETWORK_INTERFACE")
+BROKER_ADDRESS = os.environ.get("BROKER_ADDRESS")
 TOPIC = "main"
 KEEPALIVE = 10
 
 app = Flask(__name__)
 data = {}
 network_topology = {}
+network_info = {}
 
 RECONNECT_DELAY = 5
 MAX_RECONNECT_COUNT = 10
@@ -63,16 +66,17 @@ def on_message(client, userdata, msg):
         if id not in data.keys():
             data[id] = {}
             data[id]["alive"] = True
-            update_network(id, payload["network_info"])
+            add_network_info(id, payload["network_info"])
             msg["operationState"] = "COMPLETED"
         else:
             msg["operationState"] = "FAILED"
         client.publish(TOPIC, json.dumps(msg))
         print("Published data {}".format(msg))
     elif operation == "data_transfer":
-        print("Received data {} from table {}".format(payload["data"], id))
-        data[id].update(payload["data"])
-        data[id]["alive"] = True
+        if id in data.keys():
+            print("Received data {} from table {}".format(payload["data"], id))
+            data[id].update(payload["data"])
+            data[id]["alive"] = True
 
 @app.route('/', methods=['GET'])
 def root():
@@ -87,6 +91,11 @@ def get_data():
 def get_network_topology():
     global network_topology
     return str(network_topology)
+
+@app.route('/network_info', methods=['GET'])
+def get_network_info():
+    global network_info
+    return str(network_info)
 
 @app.route('/', methods=['GET'])
 def welcome():
@@ -103,15 +112,122 @@ def live_feed():
 def start_server():
     app.run(host='0.0.0.0', port=8000)
 
-def update_network(id, network_info=None, remove=False):
-    global network_topology
+def add_network_info(id, new_info = None):
+    global network_info
     
-    if remove:
-        if id in network_topology.keys():
-            del network_topology[id]
+    # get master mac address
+    master_mac = None
+    if 0 not in network_info.keys():
+        master_mac = new_info['mac_addr']
     else:
-        if network_info:
-            network_topology[id] = network_info
+        master_mac = network_info[0]['mac_addr']
+    
+    if new_info:
+        if id != 0:
+            # get only the useful info
+            useful_info = {}
+            for key in new_info.keys():
+                if key == master_mac:
+                    useful_info[0] = new_info[key]
+                    useful_info['mac_addr'] = new_info['mac_addr']
+                    break
+        else:
+            useful_info = new_info
+
+        network_info[id] = useful_info
+
+    # swap out mac addresses for ids
+    for nodeId, nodeInfo in network_info.items():
+        temp_info = {}
+        temp_info['mac_addr'] = nodeInfo['mac_addr']
+        for key, content in nodeInfo.items():
+            if key != 'mac_addr':
+                for node_id, node_info in network_info.items():
+                    if key == node_info['mac_addr']:
+                        key = node_id
+                    if content['Nexthop'] == node_info['mac_addr']:
+                        content['Nexthop'] = node_id
+
+                temp_info[key] = content
+                
+        network_info[nodeId] = temp_info
+
+    # update network topology
+    update_network_topology()
+
+def update_network_topology():
+    global network_info
+    global network_topology
+
+    network_topology = {}
+    masterInfo = network_info[0]
+    node_ids = list(network_info.keys())
+    node_ids.remove(0)
+
+    # first find all 1 hop nodes
+    for id, node_info in masterInfo.items():
+        if id != 'mac_addr':
+            if id == node_info['Nexthop']:
+                if 1 not in network_topology.keys():
+                    network_topology[1] = []
+                network_topology[1].append(id)
+                if id in node_ids:
+                    node_ids.remove(id)
+
+    i = 2
+    while len(node_ids) > 0:
+        for id in node_ids:
+            node_info = network_info[id]
+            if node_info[0]['Nexthop'] in network_topology[i-1]:
+                if i not in network_topology:
+                    network_topology[i] = []
+                network_topology[i].append(id)
+                if id in node_ids:
+                    node_ids.remove(id)
+        i += 1
+
+    # clean up in case any nodes were added that arent in the table tracker
+    for node_ids in network_topology.values():
+        for node_id in node_ids:
+            if node_id not in list(network_info.keys()):
+                node_ids.remove(node_id)
+
+def remove_network_info(id):
+    if id in network_info.keys():
+        del network_info[id]
+        update_network_topology()
+
+def parse_network_info(network_info):
+    # Initialize dictionary to hold parsed data
+    parsed_info = {}
+
+    # Split the output into lines
+    lines = network_info.strip().split('\n')
+
+    # Iterate over the relevant lines to extract originator information
+    for line in lines[2:]:  # Skip the first two lines (header and column titles)
+        if line.strip():  # Skip any empty lines
+            parts = line.split()
+            
+            # Handle lines with an asterisk (*) and without
+            if parts[0] == '*':
+                originator = parts[1]
+                last_seen = parts[2].strip('s')
+                nexthop = parts[4]
+                
+                # Convert last_seen to float, ignore lines that can't be converted
+                try:
+                    last_seen = float(last_seen)
+                except ValueError:
+                    continue
+                
+                # Add the originator information to the parsed_info dictionary
+                parsed_info[originator] = {
+                    'last-seen': last_seen,
+                    'Nexthop': nexthop
+                }
+
+    return parsed_info
 
 def start_data():
     client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
@@ -121,6 +237,26 @@ def start_data():
     client.connect(BROKER_ADDRESS, 1883, 60)
     client.subscribe(TOPIC)
     client.loop_start()
+
+    # Collect Batman information using subprocess
+    try:
+        network_info = parse_network_info(subprocess.check_output(["sudo", "batctl", "o"]).decode("utf-8"))
+    except subprocess.CalledProcessError as e:
+        network_info = f"Error collecting batman info: {e}"
+        print(network_info)
+
+    # Collect host MAC Address
+    try:
+        result = subprocess.run(['ifconfig', NETWORK_INTERFACE], stdout=subprocess.PIPE, text=True).stdout
+    except subprocess.CalledProcessError as e:
+        result = f"Error collecting mac address: {e}"
+        print(result)
+
+    for line in result.split('\n'):
+        if 'ether' in line:
+            network_info["mac_addr"] = line.split()[1]
+            break
+    add_network_info(0, network_info)
 
     global data
     while True:
@@ -135,7 +271,7 @@ def start_data():
                 data[id]["alive"] = False
         for id in idsToDelete:
             del data[id]
-            update_network(id, remove=True)
+            remove_network_info(id)
 
 def signal_handler(signal, frame):
     # Handle Ctrl+C

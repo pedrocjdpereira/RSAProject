@@ -3,7 +3,12 @@ FROM arm64v8/python:3.10-slim
 
 RUN apt-get update
 
-RUN apt-get install -y gcc musl-dev
+RUN apt-get install -y \
+    gcc \ 
+    musl-dev \
+    sudo \
+    batctl \
+    net-tools
 
 RUN pip install --upgrade pip
 
