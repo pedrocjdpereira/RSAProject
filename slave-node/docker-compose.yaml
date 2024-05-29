@@ -6,5 +6,7 @@ services:
       - FLASK_ENV=development
       - BROKER_IP=10.1.1.1
       - NETWORK_INTERFACE=wlan0
+      - VIDEO_PATH=rtsp://rsa:tabletracker@192.168.3.16:554/
+      - SITTING_PARAM=500
     network_mode: "host"
     privileged: true

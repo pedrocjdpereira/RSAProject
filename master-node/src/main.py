@@ -78,10 +78,6 @@ def on_message(client, userdata, msg):
             data[id].update(payload["data"])
             data[id]["alive"] = True
 
-@app.route('/', methods=['GET'])
-def root():
-    return 'Hello World!'
-
 @app.route('/get_data', methods=['GET'])
 def get_data():
     global data
@@ -109,6 +105,7 @@ def dashboard():
 @app.route('/live_feed', methods=['GET'])
 def live_feed():
     return render_template('live_feed.html')
+
 def start_server():
     app.run(host='0.0.0.0', port=8000)
 
@@ -194,6 +191,18 @@ def update_network_topology():
 
 def remove_network_info(id):
     if id in network_info.keys():
+        node_mac = network_info[id]['mac_addr']
+        updated_master_info = {}
+        for key, node_info in network_info[0].items():
+            if key != 'mac_addr':
+                if key == id:
+                    key = node_mac
+                if node_info['Nexthop'] == id:
+                    node_info['Nexthop'] = node_mac
+                updated_master_info[key] = node_info
+
+        updated_master_info['mac_addr'] = node_mac
+        network_info[0] = updated_master_info       
         del network_info[id]
         update_network_topology()
 

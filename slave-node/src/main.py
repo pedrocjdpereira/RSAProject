@@ -12,6 +12,8 @@ from detect_people import PeopleDetector
 # MQTT Broker details
 BROKER_ADDRESS = os.environ.get("BROKER_IP")
 NETWORK_INTERFACE = os.environ.get("NETWORK_INTERFACE")
+VIDEO_PATH = os.environ.get("VIDEO_PATH")
+SITTING_PARAM = os.environ.get("SITTING_PARAM")
 TOPIC = "main"
 RECONNECT_DELAY = 5
 MAX_RECONNECT_COUNT = 10
@@ -151,7 +153,6 @@ def start_data():
 
     global peopleDetector
     while True:
-        data = {}
         msg = {
             "id": id,
             "operation": "data_transfer",
@@ -171,16 +172,24 @@ if __name__ == '__main__':
     # Register the signal handler for Ctrl+C
     signal.signal(signal.SIGINT, signal_handler)
     
-    peopleDetector = PeopleDetector("peopleSitting_example1.mp4", 200)
+    peopleDetector = PeopleDetector(VIDEO_PATH, SITTING_PARAM)
 
     # Create thread for data
     data_thread = threading.Thread(target=start_data)
-    getSeats_thread = threading.Thread(target=peopleDetector.getSeats)
+    if VIDEO_PATH.startswith('rtsp://'):
+        discardFrames_thread = threading.Thread(target=peopleDetector.discardFrames)
+        getSeats_thread = threading.Thread(target=peopleDetector.getSeats)
+    else:
+        getSeats_thread = threading.Thread(target=peopleDetector.getSeatsVideo)
 
     # Start the thread
     data_thread.start()
+    if VIDEO_PATH.startswith('rtsp://'):
+        discardFrames_thread.start()
     getSeats_thread.start()
 
     # Wait for the thread to complete
     data_thread.join()
+    if VIDEO_PATH.startswith('rtsp://'):
+        discardFrames_thread.join()
     getSeats_thread.join()
