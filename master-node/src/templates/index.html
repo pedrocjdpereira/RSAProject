@@ -11,6 +11,24 @@
     <link rel="stylesheet" href="static/assets/vendors/themify-icons/css/themify-icons.css">
     <!-- Bootstrap + Meyawo main styles -->
     <link rel="stylesheet" href="static/assets/css/meyawo.css">
+
+    <style>
+        @keyframes blinking {
+            0% { opacity: 1.0; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1.0; }
+        }
+        .blinking {
+            animation: blinking 1s infinite;
+        }
+        .status-circle {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .green { background-color: green; }
+    </style>
 </head>
 
 <body data-spy="scroll" data-target=".navbar" data-offset="40" id="home">
@@ -40,6 +58,10 @@
                 <span class="down">WELCOME TO TABLE TRACKER</span>
             </h1>
             <p class="header-subtitle">SEATS AVAILABLE:</p>
+            <div id="total-seats-available" style="display: flex; align-items: center;">
+                <div class="status-circle green blinking"></div>
+                <span id="total-seats-number">0</span>
+            </div>
 
             <a href="/dashboard" class="btn btn-primary btn-dashboard">Go to the Dashboard</a>
         </div>
@@ -54,6 +76,117 @@
 
     <!-- Meyawo js -->
     <script src="static/assets/js/meyawo.js"></script>
+
+    <script>
+
+        var tableSetup = {
+            1: [1,4],
+            2: [2,5],
+            3: [3,6],
+        }
+        var tableNodes = {
+            1: null,
+            2: null,
+            3: null,
+            4: null,
+            5: null,
+            6: null,
+        }
+
+        $(document).ready(function() {
+            // Periodically fetch new data every 500 milliseconds
+            setInterval(function() {
+                $.ajax({
+                    url: "/network_topology",
+                    type: "GET",
+                    success: function(response) {
+                        try {
+                            var network_topology = JSON.parse(response);
+                        } catch (error) {
+                            console.log(error);
+                        }
+                        console.log(network_topology);
+                        tableNodes = {
+                            1: null,
+                            2: null,
+                            3: null,
+                            4: null,
+                            5: null,
+                            6: null,
+                        }
+                        for (var hops in network_topology) {
+                            if (network_topology.hasOwnProperty(hops)) {
+                                console.log(`Hops: ${hops}`);
+                                var node_ids = network_topology[hops];
+                                console.log(`  Node ID: ${node_ids}`);
+                                table_ids = tableSetup[hops]
+                                let i = 0
+                                while (i < 2 && i < node_ids.length) {
+                                    console.log(`  Node ID: ${node_id = node_ids[i]}`);
+                                    table_id = table_ids[i]
+                                    node_id = node_ids[i]
+                                    if (typeof node_id === "number" && node_id % 1 === 0) {
+                                        tableNodes[table_id] = node_id
+                                        i++
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    error: function(error) {
+                        console.log(error);
+                    }
+                });
+                
+                console.log("TABLE NODES")
+                console.log(tableNodes)
+
+                $.ajax({
+                    url: "/get_data",
+                    type: "GET",
+                    success: function(response) {
+                        try {
+                            var data = JSON.parse(response);
+                        } catch (error) {
+                            console.log(error);
+                        }
+                        console.log("DATA")
+                        console.log(data);
+                        updateTables(data)
+                    },
+                    error: function(error) {
+                        console.log(error);
+                    }
+                });
+
+            }, 1000);
+        });
+        function updateTables(data) {
+            var totalseats = 0
+            for (var id in tableNodes) {
+                if (tableNodes[id] != null) {
+                    node_id = tableNodes[id]
+                    if (node_id in data){
+                        console.log(id)
+                        console.log(node_id)
+                        console.log("table" + id + "-available")
+                        console.log(document.getElementById("table" + id + "-available").innerText)
+                        if ("seats_available" in  data[node_id] && "seated" in  data[node_id] && "standing" in  data[node_id]){
+                            totalseats += data[node_id].seats_available
+                        }
+                        else{
+                            totalseats += 0
+                        }
+                    }
+                }
+                else{
+                    totalseats += 0
+                }
+            }
+
+            document.getElementById("total-seats-number").innerText = totalseats;
+        }
+    </script>
 
 </body>
 
