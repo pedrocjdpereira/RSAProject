@@ -12,7 +12,14 @@
     <!-- Bootstrap + Meyawo main styles -->
     <link rel="stylesheet" href="static/assets/css/meyawo.css">
     <style>
-
+        @keyframes blinking {
+            0% { opacity: 1.0; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1.0; }
+        }
+        .blinking {
+            animation: blinking 1s infinite;
+        }
         html, body {
             height: 100%;
             margin: 0;
@@ -154,6 +161,17 @@
             font-size: 1em;
             color: #333;
         }
+
+        #camera-feed {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 10%;
+            left: 50%;
+            transform: translate(-50%, 0);
+            z-index: 1000; /* Ensure it appears above other elements */
+        }
         
     </style>
 </head>
@@ -177,7 +195,7 @@
                 <div class="table-container" id="table1">
                     <div class="camera-status left">
                         <img src="static/assets/imgs/camera.png" alt="Camera">
-                        <span id="camera-status">Off</span>
+                        <span class="status-circle red blinking" id="camera1-status"></span>
                     </div>
                     <button id="toggle-camera-feed" class="btn btn-primary">Show Live Feed</button>
                     <h3>Table 1</h3>
@@ -199,7 +217,7 @@
                 <div class="table-container" id="table2">
                     <div class="camera-status left">
                         <img src="static/assets/imgs/camera.png" alt="Camera">
-                        <span id="camera-status">Off</span>
+                        <span class="status-circle red blinking" id="camera2-status"></span>
                     </div>
                     <h3>Table 2</h3>
                     <div class="seats-status">
@@ -220,7 +238,7 @@
                 <div class="table-container" id="table3">
                     <div class="camera-status left">
                         <img src="static/assets/imgs/camera.png" alt="Camera">
-                        <span id="camera-status">Off</span>
+                        <span class="status-circle red blinking" id="camera3-status"></span>
                     </div>
                     <h3>Table 3</h3>
                     <div class="seats-status">
@@ -244,7 +262,7 @@
                 <div class="table-container" id="table4">
                     <div class="camera-status right">
                         <img src="static/assets/imgs/camera_right.png" alt="Camera">
-                        <span id="camera-status">Off</span>
+                        <span class="status-circle red blinking" id="camera4-status"></span>
                     </div>
                     <h3>Table 4</h3>
                     <div class="seats-status">
@@ -265,7 +283,7 @@
                 <div class="table-container" id="table5">
                     <div class="camera-status right">
                         <img src="static/assets/imgs/camera_right.png" alt="Camera">
-                        <span id="camera-status">Off</span>
+                        <span class="status-circle red blinking" id="camera5-status"></span>
                     </div>
                     <h3>Table 5</h3>
                     <div class="seats-status">
@@ -286,7 +304,7 @@
                 <div class="table-container" id="table6">
                     <div class="camera-status right">
                         <img src="static/assets/imgs/camera_right.png" alt="Camera">
-                        <span id="camera-status">Off</span>
+                        <span class="status-circle red blinking" id="camera6-status"></span>
                     </div>
                     <h3>Table 6</h3>
                     <div class="seats-status">
@@ -376,18 +394,30 @@
                             document.getElementById("table" + id + "-available").innerText = data[node_id].seats_available;
                             document.getElementById("table" + id + "-not-available").innerText = data[node_id].seated;
                             document.getElementById("table" + id + "-standing").innerText = data[node_id].standing;
+                            document.getElementById("camera" + id + "-status").className = data[node_id].alive ? 'status-circle green blinking' : 'status-circle red blinking';
                         }
                         else{
                             document.getElementById("table" + id + "-available").innerText = 0
                             document.getElementById("table" + id + "-not-available").innerText = 0
                             document.getElementById("table" + id + "-standing").innerText = 0
+                            document.getElementById("camera" + id + "-status").className = 'status-circle red blinking';
                         }
+                        
                         console.log(document.getElementById("table" + id + "-available").innerText)
                     }
                 }
+                else{
+                    document.getElementById("table" + id + "-available").innerText = 0
+                    document.getElementById("table" + id + "-not-available").innerText = 0
+                    document.getElementById("table" + id + "-standing").innerText = 0
+                    document.getElementById("camera" + id + "-status").className = 'status-circle red blinking';
+                }
             }
         }
-
+        // function updateCameraStatus(tableId, isAlive) {
+        //     const statusCircle = document.getElementById(`camera${tableId}-status`);
+        //     statusCircle.className = isAlive ? 'status-circle green blinking' : 'status-circle red blinking';
+        // }
         $(document).ready(function() {
             // Periodically fetch new data every 500 milliseconds
             setInterval(function() {
