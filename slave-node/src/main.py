@@ -20,6 +20,7 @@ MAX_RECONNECT_COUNT = 10
 
 id = -1
 id_accepted = False
+reconnecting = False
 
 def on_connect(client, userdata, flags, rc, properties):
     if rc == 0:
@@ -29,6 +30,10 @@ def on_connect(client, userdata, flags, rc, properties):
 
 def on_disconnect(client, userdata, rc, properties=None, session_expiry_interval=None):
     print("Disconnected with result code: %s", rc)
+    global reconnecting
+    global id_accepted
+    reconnecting = True
+    id_accepted = False
     reconnect_count, reconnect_delay = 0, RECONNECT_DELAY
     while reconnect_count < MAX_RECONNECT_COUNT:
         print("Reconnecting in %d seconds...", reconnect_delay)
@@ -37,6 +42,10 @@ def on_disconnect(client, userdata, rc, properties=None, session_expiry_interval
         try:
             client.reconnect()
             print("Reconnected successfully!")
+            while not id_accepted:
+                generate_id(client)
+                time.sleep(2)
+            reconnecting = False
             return
         except Exception as err:
             print("%s. Reconnect failed. Retrying...", err)
@@ -61,7 +70,7 @@ def on_message(client, userdata, msg):
             if operationState == "COMPLETED":
                 print("ID {} is accepted.".format(msg_id))
                 id_accepted = True
-            elif operationState == "FAILED":
+            elif operationState == "FAILED" and not id_accepted:
                 print("ID {} is invalid. Generating a new ID.".format(msg_id))
                 generate_id(client)
 
@@ -152,7 +161,10 @@ def start_data():
         time.sleep(2)
 
     global peopleDetector
+    global reconnecting
     while True:
+        while reconnecting:
+            time.sleep(2)
         msg = {
             "id": id,
             "operation": "data_transfer",

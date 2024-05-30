@@ -335,6 +335,19 @@
     <script src="static/assets/js/meyawo.js"></script>
 
     <script>
+        var tableSetup = {
+            1: [1,4],
+            2: [2,5],
+            3: [3,6],
+        }
+        var tableNodes = {
+            1: null,
+            2: null,
+            3: null,
+            4: null,
+            5: null,
+            6: null,
+        }
 
         function toggleCameraFeed() {
                 var cameraFeed = document.getElementById("camera-feed");
@@ -350,20 +363,99 @@
         document.getElementById("toggle-camera-feed").addEventListener("click", toggleCameraFeed);
 
         function updateTables(data) {
-            for (const id in data) {
-                document.getElementById("table" + id + "-available").innerText = data[id].seats_available;
-                document.getElementById("table" + id + "-not-available").innerText = data[id].seated;
-                document.getElementById("table" + id + "-standing").innerText = data[id].standing;
+            console.log("Updating Tables")
+            for (var id in tableNodes) {
+                if (tableNodes[id] != null) {
+                    node_id = tableNodes[id]
+                    if (node_id in data){
+                        console.log(id)
+                        console.log(node_id)
+                        console.log("table" + id + "-available")
+                        console.log(document.getElementById("table" + id + "-available").innerText)
+                        if ("seats_available" in  data[node_id] && "seated" in  data[node_id] && "standing" in  data[node_id]){
+                            document.getElementById("table" + id + "-available").innerText = data[node_id].seats_available;
+                            document.getElementById("table" + id + "-not-available").innerText = data[node_id].seated;
+                            document.getElementById("table" + id + "-standing").innerText = data[node_id].standing;
+                        }
+                        else{
+                            document.getElementById("table" + id + "-available").innerText = 0
+                            document.getElementById("table" + id + "-not-available").innerText = 0
+                            document.getElementById("table" + id + "-standing").innerText = 0
+                        }
+                        console.log(document.getElementById("table" + id + "-available").innerText)
+                    }
+                }
             }
         }
 
-        function fetchData() {
-            $.getJSON('/get_data', function(data) {
-                updateTables(data);
-            });
-        }
+        $(document).ready(function() {
+            // Periodically fetch new data every 500 milliseconds
+            setInterval(function() {
+                $.ajax({
+                    url: "/network_topology",
+                    type: "GET",
+                    success: function(response) {
+                        try {
+                            var network_topology = JSON.parse(response);
+                        } catch (error) {
+                            console.log(error);
+                        }
+                        console.log(network_topology);
+                        tableNodes = {
+                            1: null,
+                            2: null,
+                            3: null,
+                            4: null,
+                            5: null,
+                            6: null,
+                        }
+                        for (var hops in network_topology) {
+                            if (network_topology.hasOwnProperty(hops)) {
+                                console.log(`Hops: ${hops}`);
+                                var node_ids = network_topology[hops];
+                                console.log(`  Node ID: ${node_ids}`);
+                                table_ids = tableSetup[hops]
+                                let i = 0
+                                while (i < 2 && i < node_ids.length) {
+                                    console.log(`  Node ID: ${node_id = node_ids[i]}`);
+                                    table_id = table_ids[i]
+                                    node_id = node_ids[i]
+                                    if (typeof node_id === "number" && node_id % 1 === 0) {
+                                        tableNodes[table_id] = node_id
+                                        i++
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    error: function(error) {
+                        console.log(error);
+                    }
+                });
+                
+                console.log("TABLE NODES")
+                console.log(tableNodes)
 
-        setInterval(fetchData, 5000);  // Fetch data every 5 seconds
+                $.ajax({
+                    url: "/get_data",
+                    type: "GET",
+                    success: function(response) {
+                        try {
+                            var data = JSON.parse(response);
+                        } catch (error) {
+                            console.log(error);
+                        }
+                        console.log("DATA")
+                        console.log(data);
+                        updateTables(data)
+                    },
+                    error: function(error) {
+                        console.log(error);
+                    }
+                });
+
+            }, 1000);
+        });
     </script>
 </body>
 
