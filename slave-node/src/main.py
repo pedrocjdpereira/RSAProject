@@ -90,8 +90,10 @@ def parse_network_info(network_info):
             if parts[0] == '*':
                 originator = parts[1]
                 last_seen = parts[2].strip('s')
-                nexthop = parts[4]
-                
+                if parts[3] == '(':
+                    nexthop = parts[5]
+                else:
+                    nexthop = parts[4]
                 # Convert last_seen to float, ignore lines that can't be converted
                 try:
                     last_seen = float(last_seen)
