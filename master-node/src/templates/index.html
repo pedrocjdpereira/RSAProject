@@ -28,6 +28,11 @@
             margin-right: 5px;
         }
         .green { background-color: green; }
+        #total-seats-number {
+            font-size: 2em; /* Make the number larger */
+            font-weight: bold; /* Make the number darker */
+            color: #333; /* Dark color */
+        }
     </style>
 </head>
 
@@ -167,12 +172,9 @@
                 if (tableNodes[id] != null) {
                     node_id = tableNodes[id]
                     if (node_id in data){
-                        console.log(id)
-                        console.log(node_id)
-                        console.log("table" + id + "-available")
-                        console.log(document.getElementById("table" + id + "-available").innerText)
                         if ("seats_available" in  data[node_id] && "seated" in  data[node_id] && "standing" in  data[node_id]){
                             totalseats += data[node_id].seats_available
+                            
                         }
                         else{
                             totalseats += 0
@@ -185,6 +187,7 @@
             }
 
             document.getElementById("total-seats-number").innerText = totalseats;
+            console.log("Total Seats: " + totalseats)   
         }
     </script>
 
