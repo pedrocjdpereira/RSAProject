@@ -85,7 +85,7 @@ class PeopleDetector:
             json_data = {
                 "standing": standing_count,
                 "seated": seated_count,
-                "seats_available": seats_available-standing_count-seated_count
+                "seats_available": seats_available-seated_count
             }
             self.data.update(json_data)
             #cv2.imshow('Video', frame)
