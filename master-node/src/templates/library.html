@@ -366,19 +366,6 @@
             6: null,
         }
 
-        function toggleCameraFeed() {
-                var cameraFeed = document.getElementById("camera-feed");
-                if (cameraFeed.style.display === "none") {
-                    cameraFeed.style.display = "block";
-                    document.getElementById("toggle-camera-feed").innerText = "Hide Camera Feed";
-                } else {
-                    cameraFeed.style.display = "none";
-                    document.getElementById("toggle-camera-feed").innerText = "Show Camera Feed";
-                }
-            }
-
-        document.getElementById("toggle-camera-feed").addEventListener("click", toggleCameraFeed);
-
         function updateTables(data) {
             console.log("Updating Tables")
             for (var id in tableNodes) {
